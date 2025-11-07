@@ -1,0 +1,25 @@
+[package]
+name = "janecek_voting"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "janecek_voting"
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = []
+test-mode = []
+
+[dependencies]
+solana-program = "1.18.10"
+borsh = "0.10.4"
+borsh-derive = "0.10.4"
+thiserror = "1.0"
+
+
+[dev-dependencies] 
+solana-program-test = "1.18.10"
+solana-client = "1.18.10"
+solana-sdk = "1.18.10"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
