@@ -1,0 +1,1244 @@
+Error: Function _ZN4core5slice4sort6stable14driftsort_main17h98729589446f1bbaE Stack offset of 4104 exceeded max offset of 4096 by 8 bytes, please minimize large stack variables. Estimated function frame size: 4160 bytes. Exceeding the maximum stack offset may cause undefined behavior during execution.
+
+   Compiling janecek_anchor v0.1.0 (/Users/idgest/Warrior-path-2/janecek_anchor/programs/janecek_anchor)
+warning: unused imports: `MintTo`, `Mint`, `TokenAccount`, `Token`, `associated_token::AssociatedToken`, and `self`
+ --> programs/janecek_anchor/src/instructions/vote_free.rs:3:13
+  |
+3 |     token::{self, Mint, TokenAccount, MintTo, Token},
+  |             ^^^^  ^^^^  ^^^^^^^^^^^^  ^^^^^^  ^^^^^
+4 |     associated_token::AssociatedToken,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: use of deprecated method `anchor_lang::prelude::AccountInfo::<'a>::realloc`: Use AccountInfo::resize() instead
+  --> programs/janecek_anchor/src/lib.rs:12:1
+   |
+12 | #[program]
+   | ^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+   = note: this warning originates in the attribute macro `program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `janecek_anchor` (lib) generated 2 warnings (run `cargo fix --lib -p janecek_anchor` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5.50s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running unittests src/lib.rs (/Users/idgest/Warrior-path-2/janecek_anchor/target/debug/deps/janecek_anchor-cbfc98e1d40b640d)
+
+running 3 tests
+...
+successes:
+
+---- __anchor_private_print_idl_address stdout ----
+--- IDL begin address ---
+"\"4iXWdAoeJQMVr39ZhziS4hDfTz9K1soQTN88NLDwwinH\""
+--- IDL end address ---
+
+---- errors::__anchor_private_print_idl_error_janecek_error stdout ----
+--- IDL begin errors ---
+[
+  {
+    "code": 6000,
+    "name": "InvalidInstruction",
+    "msg": "Invalid instruction"
+  },
+  {
+    "code": 6001,
+    "name": "InvalidTitleLength",
+    "msg": "Title can not exceed 32 symbols"
+  },
+  {
+    "code": 6002,
+    "name": "InvalidDescriptionLength",
+    "msg": "Description van not exceed 280 symbols"
+  },
+  {
+    "code": 6003,
+    "name": "MintAlreadyExists",
+    "msg": "Mint account already initialized."
+  },
+  {
+    "code": 6004,
+    "name": "PollTitleHashMismatch",
+    "msg": "Poll title hash mismatch"
+  },
+  {
+    "code": 6005,
+    "name": "PollDescriptionHashMismatch",
+    "msg": "Poll description hash mismatch"
+  },
+  {
+    "code": 6006,
+    "name": "Unauthorized",
+    "msg": "User is not the owner of provided PDA"
+  },
+  {
+    "code": 6007,
+    "name": "NotInRegistrationPhase",
+    "msg": "Not in registration phase"
+  },
+  {
+    "code": 6008,
+    "name": "RegistrationPhaseTooShort",
+    "msg": "Registration must be minimum 24h"
+  },
+  {
+    "code": 6009,
+    "name": "NotInVotingPhase",
+    "msg": "Not in voting phase"
+  },
+  {
+    "code": 6010,
+    "name": "VotingWasNotFinished",
+    "msg": "voting was not finished"
+  },
+  {
+    "code": 6011,
+    "name": "VotingWasFinished",
+    "msg": "voting was finished"
+  },
+  {
+    "code": 6012,
+    "name": "RewardsDisabled",
+    "msg": "Rewards are disabled"
+  },
+  {
+    "code": 6013,
+    "name": "InvalidMint",
+    "msg": "Invalid mint address"
+  },
+  {
+    "code": 6014,
+    "name": "VotingPeriodFinished",
+    "msg": "Voting period is finished"
+  },
+  {
+    "code": 6015,
+    "name": "NoPositiveVoice",
+    "msg": "Voter do not have positive voice"
+  },
+  {
+    "code": 6016,
+    "name": "NoNegativeVoice",
+    "msg": "Voter do not have negative voice"
+  },
+  {
+    "code": 6017,
+    "name": "AlreadyVoted",
+    "msg": "Voter already voted for this party"
+  },
+  {
+    "code": 6018,
+    "name": "MustUseAllPositiveVoices",
+    "msg": "Voter must use all positive voices"
+  },
+  {
+    "code": 6019,
+    "name": "TooManyVotes",
+    "msg": "All votes were used"
+  }
+]
+--- IDL end errors ---
+
+---- __anchor_private_print_idl_program stdout ----
+--- IDL begin program ---
+{
+  "address": "",
+  "metadata": {
+    "name": "janecek_anchor",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "init_poll",
+      "discriminator": [
+        125,
+        33,
+        167,
+        77,
+        242,
+        214,
+        203,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "poll_title",
+          "type": "string"
+        },
+        {
+          "name": "poll_description",
+          "type": "string"
+        },
+        {
+          "name": "poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_party",
+      "discriminator": [
+        128,
+        133,
+        157,
+        185,
+        6,
+        55,
+        93,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "party",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poll"
+              },
+              {
+                "kind": "arg",
+                "path": "party_title_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "party_title",
+          "type": "string"
+        },
+        {
+          "name": "party_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "reward_enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "init_owner_transfer",
+      "discriminator": [
+        240,
+        173,
+        64,
+        26,
+        86,
+        130,
+        225,
+        198
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "poll"
+          ]
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "expected_owner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "accept_owner",
+      "discriminator": [
+        176,
+        23,
+        41,
+        28,
+        23,
+        111,
+        8,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "expected_owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_voting",
+      "discriminator": [
+        32,
+        172,
+        45,
+        241,
+        101,
+        5,
+        38,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "finish_voting",
+      "discriminator": [
+        184,
+        50,
+        23,
+        103,
+        235,
+        225,
+        121,
+        246
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "free_vote",
+      "discriminator": [
+        74,
+        165,
+        202,
+        84,
+        65,
+        208,
+        75,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "party",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poll"
+              },
+              {
+                "kind": "arg",
+                "path": "party_title_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "voter_pda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  111,
+                  116,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poll"
+              },
+              {
+                "kind": "account",
+                "path": "voter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "vote_type",
+          "type": {
+            "defined": {
+              "name": "janecek_anchor::state::VoteType"
+            }
+          }
+        },
+        {
+          "name": "_party_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reward_vote",
+      "discriminator": [
+        164,
+        14,
+        7,
+        105,
+        74,
+        30,
+        181,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "poll",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "poll_title_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "poll_description_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "party",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poll"
+              },
+              {
+                "kind": "arg",
+                "path": "party_title_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "voter_pda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  111,
+                  116,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "poll"
+              },
+              {
+                "kind": "account",
+                "path": "voter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "voter_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "voter"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_poll_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_poll_description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "vote_type",
+          "type": {
+            "defined": {
+              "name": "janecek_anchor::state::VoteType"
+            }
+          }
+        },
+        {
+          "name": "party_title_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "janecek_anchor::state::PartyAccount",
+      "discriminator": [
+        49,
+        70,
+        136,
+        122,
+        206,
+        186,
+        213,
+        229
+      ]
+    },
+    {
+      "name": "janecek_anchor::state::PollAccount",
+      "discriminator": [
+        109,
+        254,
+        117,
+        41,
+        232,
+        74,
+        172,
+        45
+      ]
+    },
+    {
+      "name": "janecek_anchor::state::VoterAccount",
+      "discriminator": [
+        24,
+        202,
+        161,
+        124,
+        196,
+        184,
+        105,
+        236
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "janecek_anchor::state::PartyAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "poll_address",
+            "type": "pubkey"
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "reward_enabled",
+            "type": "bool"
+          },
+          {
+            "name": "positive_votes",
+            "type": "u64"
+          },
+          {
+            "name": "negative_votes",
+            "type": "u64"
+          },
+          {
+            "name": "mint_address",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "janecek_anchor::state::PollAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "phase",
+            "type": {
+              "defined": {
+                "name": "janecek_anchor::state::VotingPhase"
+              }
+            }
+          },
+          {
+            "name": "party_counter",
+            "type": "u64"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "expected_new_owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "voting_start_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "janecek_anchor::state::VoteType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Positive"
+          },
+          {
+            "name": "Negative"
+          }
+        ]
+      }
+    },
+    {
+      "name": "janecek_anchor::state::VoterAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "initialized",
+            "type": "bool"
+          },
+          {
+            "name": "positive_used",
+            "type": "u8"
+          },
+          {
+            "name": "negative_used",
+            "type": "u8"
+          },
+          {
+            "name": "voted_parties",
+            "type": {
+              "array": [
+                "pubkey",
+                3
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "janecek_anchor::state::VotingPhase",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Registration"
+          },
+          {
+            "name": "Voting"
+          },
+          {
+            "name": "Results"
+          }
+        ]
+      }
+    }
+  ]
+}
+--- IDL end program ---
+
+
+successes:
+    __anchor_private_print_idl_address
+    __anchor_private_print_idl_program
+    errors::__anchor_private_print_idl_error_janecek_error
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+
+
+Found a 'test' script in the Anchor.toml. Running it as a test suite!
+
+Running test suite: "/Users/idgest/Warrior-path-2/janecek_anchor/Anchor.toml"
+
+yarn run v1.22.22
+$ /Users/idgest/Warrior-path-2/janecek_anchor/node_modules/.bin/ts-mocha -p ./tsconfig.json -t 1000000 'tests/**/*.ts'
+(node:90732) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/idgest/Warrior-path-2/janecek_anchor/tests/initialize_poll.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/idgest/Warrior-path-2/janecek_anchor/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+  Janecek-Tests
+Poll Owner: 8GFf7GzY7itsX9h65yVXAsH3MJnrJgvNd39ABsAqhSe3
+Poll Owner Balance: 2000000000
+Poll Owner 2: DAQaveGp5rGozGFeew19SrjTkpHjbudct7wadnBYkpe
+Poll Owner 2 Balance: 2000000000
+Voter 1: GRMoNSqqnQShvAsX6sJ4mfp6BGmnWKGgpkkJB4zv2wsR
+Voter 1 Balance: 2000000000
+Voter 2: Gq7CAewGDDRWuVH2B8x7EnUUyJNLQNGDn4bzj3zZ2xdC
+Voter 2 Balance: 2000000000
+    poll-creation
+Client title hash: 3ecb5136360d3e4ce7998fd532d26ee04f391dffa9cdb1493c14898cfc4de4cf
+Client description hash: 38e7da83a1444170378b81fa1a1db16bab7f95c2182979e1e228bfe8ff3c291d
+      1) creates a new poll PDA
+
+
+  0 passing (739ms)
+  1 failing
+
+  1) Janecek-Tests
+       poll-creation
+         creates a new poll PDA:
+     Error: AnchorError caused by account: poll. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.
+Program log: Left:
+Program log: G8AesR6dri2h1kxw2Rgpn4TbFm7rtG4VfWdCM4V24Ykb
+Program log: Right:
+Program log: 6tovaAqSV2CjPCRhc5rz9SjdVn7iWGrAVKDWkT6ozVy5
+      at AnchorError.parse (node_modules/@coral-xyz/anchor/src/error.ts:168:14)
+      at translateError (node_modules/@coral-xyz/anchor/src/error.ts:277:35)
+      at MethodsBuilder.rpc [as _rpcFn] (node_modules/@coral-xyz/anchor/src/program/namespace/rpc.ts:35:29)
+      at processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+
+
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
