@@ -47,13 +47,9 @@ pub struct RewardVote<'info> {
     )]
     pub mint: Account<'info, Mint>,
 
-    #[account(
-        init_if_needed,
-        payer = voter,
-        associated_token::mint = mint,
-        associated_token::authority = voter
-    )]
-    pub voter_ata: Account<'info, TokenAccount>,
+    /// CHECK: ATA may or may not exist; validated in handler
+    #[account(mut)]
+    pub voter_ata: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -101,6 +97,56 @@ pub fn vote_with_reward(
         party.positive_votes += 1;
         voter_pda.positive_used += 1;
 
+        // check if ata exists
+        let ata_info = ctx.accounts.voter_ata.to_account_info();
+        let voter_key = ctx.accounts.voter.key();
+        let mint_key = ctx.accounts.mint.key();
+
+        let ata_valid = assert_ata_for_owner_and_mint(
+            &ata_info,
+            &voter_key,
+            &mint_key,
+        )?;
+
+        // create if not exists
+        if !ata_valid {
+            create_ata(
+                &ctx.accounts.voter.to_account_info(),
+                &ata_info,
+                &ctx.accounts.voter.to_account_info(),
+                &ctx.accounts.mint.to_account_info(),
+                &ctx.accounts.associated_token_program.to_account_info(),
+                &ctx.accounts.token_program.to_account_info(),
+                &ctx.accounts.system_program.to_account_info(),
+            )?;
+            
+        }
+
+        // transfer tokens to user account
+        let poll_key = poll.key();
+        let seeds = &[
+            b"party",
+            poll_key.as_ref(),
+            party_title_hash.as_ref(),
+            &[party.bump]
+        ];
+
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.voter_ata.to_account_info(),
+            authority: party.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            cpi_accounts, 
+            signer_seeds
+        );
+
+        token::mint_to(cpi_ctx, 1)?;
+
     } else if vote_type == VoteType::Negative {
         require!(voter_pda.positive_used == 2, JanecekError::MustUseAllPositiveVoices);
         require!(voter_pda.negative_used == 0, JanecekError::NoNegativeVoice);
@@ -115,31 +161,45 @@ pub fn vote_with_reward(
         return err!(JanecekError::TooManyVotes);
     }
 
-    // TODO: transfer tokens to user account
-    let poll_key = poll.key();
-    let seeds = &[
-        b"party",
-        poll_key.as_ref(),
-        party_title_hash.as_ref(),
-        &[party.bump]
-    ];
-
-    let signer_seeds = &[&seeds[..]];
-
-    let cpi_accounts = MintTo {
-        mint: ctx.accounts.mint.to_account_info(),
-        to: ctx.accounts.voter_ata.to_account_info(),
-        authority: party.to_account_info(),
-    };
-
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.token_program.to_account_info(),
-        cpi_accounts, 
-        signer_seeds
-    );
-
-    token::mint_to(cpi_ctx, 1)?;
-
-
     Ok(())
 }
+
+
+fn assert_ata_for_owner_and_mint(
+    ata: &AccountInfo,
+    owner: &Pubkey,
+    mint: &Pubkey,
+) -> Result<bool> {
+    if ata.owner == &anchor_spl::token::ID {
+        if let Ok(token_acc) = TokenAccount::try_deserialize(&mut &ata.data.borrow()[..]) {
+            return Ok(token_acc.owner == *owner && token_acc.mint == *mint);
+        }
+    }
+    Ok(false)
+}
+
+
+fn create_ata<'info>(
+    payer: &AccountInfo<'info>,
+    ata: &AccountInfo<'info>,
+    owner: &AccountInfo<'info>,
+    mint: &AccountInfo<'info>,
+    associated_token_program: &AccountInfo<'info>,
+    token_program: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+) -> Result<()> {
+    let cpi_accounts = anchor_spl::associated_token::Create {
+        payer: payer.clone(),
+        associated_token: ata.clone(),
+        authority: owner.clone(),
+        mint: mint.clone(),
+        system_program: system_program.clone(),
+        token_program: token_program.clone(),
+    };
+
+    let ctx = CpiContext::new(associated_token_program.clone(), cpi_accounts);
+
+    anchor_spl::associated_token::create(ctx)
+}
+
+

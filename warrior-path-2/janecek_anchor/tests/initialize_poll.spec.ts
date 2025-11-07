@@ -5,6 +5,7 @@ import { JanecekAnchor } from "../target/types/janecek_anchor";
 import * as crypto from "crypto";
 
 import {
+    getMint,
     getAssociatedTokenAddress,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -42,6 +43,7 @@ describe("Janecek-Tests", () => {
     let mintPdaB: PublicKey;
     let partyBPda: PublicKey;
     let partyTitleHashB: Buffer;
+    let mintPdaC: PublicKey;
     let partyCPda: PublicKey;
     let partyTitleHashC: Buffer;
     let randomSeed: String;
@@ -186,7 +188,7 @@ describe("Janecek-Tests", () => {
     })
 
     describe("party-creation", () => { 
-        it("creates a new party PDA without reward", async () => {
+        it("creates a new party PDA A without reward", async () => {
             const creator = pollOwner;
             const partyTitle = "Party A";
             const rewardEnabled = false;
@@ -253,7 +255,7 @@ describe("Janecek-Tests", () => {
             console.log("Non-reward Party PDA created at:", partyPda.toBase58());
         });
 
-        it("creates a new party PDA with reward", async () => {
+        it("creates a new party PDA B with reward", async () => {
             const creator = pollOwner;
             const partyTitle = "Party B";
             const rewardEnabled = true;
@@ -322,11 +324,124 @@ describe("Janecek-Tests", () => {
             const pollAcc = await program.account.pollAccount.fetch(pollPda);
             expect(pollAcc.partyCounter.toNumber()).to.equal(2);
 
+            // Fetch mint Acc from blockchain
+            const mintAcc = await getMint(
+                connection,
+                mintPda
+            );
+            expect(Number(mintAcc.supply)).to.equal(0);
+            expect(mintAcc.decimals).to.equal(0);
+            expect(mintAcc.mintAuthority?.equals(partyPda)).to.equal(true);
+            expect(mintAcc.freezeAuthority).to.equal(null);
+
+            console.log("Reward Party PDA with reward created at:", partyPda.toBase58());
+        });
+
+        it("creates a new party PDA C with reward", async () => {
+            const creator = pollOwner;
+            const partyTitle = "Party C";
+            const rewardEnabled = true;
+
+            // Compute party title hash
+            const partyTitleHash = crypto.createHash("sha256").update(partyTitle, "utf8").digest();
+
+            // Derive Party PDA
+            const [partyPda, partyBump] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("party"),
+                    pollPda.toBuffer(),
+                    partyTitleHash
+                ],
+                program.programId
+            );
+
+            partyCPda = partyPda;
+            partyTitleHashC = partyTitleHash;
+
+
+            const [mintPda] = PublicKey.findProgramAddressSync(
+                [Buffer.from("mint"), pollPda.toBuffer(), partyTitleHash],
+                program.programId
+            );
+
+            mintPdaC = mintPda;
+
+            // Call instruction
+            const txSignature = await program.methods
+                .initParty(
+                    partyTitle,
+                    Array.from(partyTitleHash),
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                    rewardEnabled
+                )
+                .accountsPartial({
+                    creator: creator.publicKey,
+                    poll: pollPda,
+                    party: partyPda,
+                    mint: mintPda,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                })
+                .rpc();
+
+            console.log("[init party with reward] -> TX signature:", txSignature);
+
+            await connection.confirmTransaction(txSignature, "confirmed");
+
+            // Fetch party from blockchain
+            const partyAcc = await program.account.partyAccount.fetch(partyPda);
+
+            // Validate creation
+            expect(partyAcc.title).to.equal(partyTitle);
+            expect(partyAcc.pollAddress.toBase58()).to.equal(pollPda.toBase58());
+            expect(partyAcc.rewardEnabled).to.equal(true);
+            expect(partyAcc.positiveVotes.toNumber()).to.equal(0);
+            expect(partyAcc.negativeVotes.toNumber()).to.equal(0);
+            expect(partyAcc.mintAddress).to.not.be.null;
+            expect(partyAcc.mintAddress?.toBase58()).to.equal(mintPda.toBase58());
+            expect(partyAcc.bump).to.equal(partyBump);
+
+            // Verify poll counter increased
+            const pollAcc = await program.account.pollAccount.fetch(pollPda);
+            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
+
+            // Fetch mint Acc from blockchain
+            const mintAcc = await getMint(
+                connection,
+                mintPda
+            );
+            expect(Number(mintAcc.supply)).to.equal(0);
+            expect(mintAcc.decimals).to.equal(0);
+            expect(mintAcc.mintAuthority?.equals(partyPda)).to.equal(true);
+            expect(mintAcc.freezeAuthority).to.equal(null);
+
             console.log("Reward Party PDA with reward created at:", partyPda.toBase58());
         });
     })
  
     describe("start-voting", () => {
+        it("can not finish voting from registration phase", async () => {
+            try {
+                await program.methods   
+                .finishVoting(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                )
+                .accountsPartial({
+                    anyone: randomUser.publicKey,
+                    poll: pollPda
+                })
+                .signers([randomUser]) 
+                .rpc();
+                expect.fail("attempt to finish voting should throw NotInVotingPhase error");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("NotInVotingPhase"))).to.equal(true);
+            }
+        })
+
         it("successfully start voting", async () => {
             const owner = pollOwner;
             
@@ -351,7 +466,7 @@ describe("Janecek-Tests", () => {
             expect(pollAcc.title).to.equal(pollTitle);
             expect(pollAcc.description).to.equal(pollDesc);
             expect(pollAcc.phase).to.deep.equal({ voting: {} });
-            expect(pollAcc.partyCounter.toNumber()).to.equal(2);
+            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
             expect(pollAcc.owner.toBase58()).to.equal(owner.publicKey.toBase58());
             expect(pollAcc.expectedNewOwner.toBase58()).to.equal(owner.publicKey.toBase58());
 
@@ -361,10 +476,30 @@ describe("Janecek-Tests", () => {
             console.log("*** Voting was started ***");
 
         })
+        
+        it("can not start voting after it was started", async () => {
+            try {
+                await program.methods
+                .initVoting(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                )
+                .accountsPartial({
+                    owner: pollOwner.publicKey,
+                    poll: pollPda
+                })
+                .rpc();
+                expect.fail("Resrart should throw NotInRegistrationPhase error");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("NotInRegistrationPhase"))).to.equal(true);
+            }
+        })
     })
 
     describe("vote", () => {
-        it("successfully vote for non reward party", async () => {
+        it("successfully positive vote for NON-REWARD party A", async () => {
             // Derive Voter PDA
             const [voterPda, _] = PublicKey.findProgramAddressSync(
                 [
@@ -401,6 +536,7 @@ describe("Janecek-Tests", () => {
             const partyAccA = await program.account.partyAccount.fetch(partyAPda);
             
             expect(partyAccA.positiveVotes.toNumber()).to.equal(1);
+            expect(partyAccA.negativeVotes.toNumber()).to.equal(0);
             expect(partyAccA.mintAddress).to.be.null;
 
             // Fetch party from blockchain
@@ -417,7 +553,117 @@ describe("Janecek-Tests", () => {
             ).to.equal(true);
 
         })
-        it("successfully vote for reward party", async () => {
+        it("can not vote for the same NON-REWARD party A", async () => {
+            // Derive Voter PDA
+            const [voterPda, _] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("voter"),
+                    pollPda.toBuffer(),
+                    voter1.publicKey.toBuffer()
+                ],
+                program.programId
+            );
+
+            try {
+                await program.methods
+                    .freeVote(
+                        Array.from(pollTitleHash),
+                        Array.from(pollDescHash),
+                        { positive: {} },
+                        Array.from(partyTitleHashA),
+                    )
+                    .accountsPartial({
+                        voter: voter1.publicKey,
+                        poll: pollPda,
+                        party: partyAPda,
+                        voterPda,
+                        systemProgram: SystemProgram.programId,
+                    })
+                    .signers([voter1])
+                    .rpc();
+                expect.fail("Second vote should have thrown AlreadyVoted error");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("AlreadyVoted"))).to.equal(true);
+            }
+
+        })
+        it("can not use negative vote for NON-REWARD party before all positive votes were used", async () => {
+            // Derive Voter PDA
+            const [voterPda, _] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("voter"),
+                    pollPda.toBuffer(),
+                    voter1.publicKey.toBuffer()
+                ],
+                program.programId
+            );
+
+            try {
+                await program.methods
+                    .freeVote(
+                        Array.from(pollTitleHash),
+                        Array.from(pollDescHash),
+                        { negative: {} },
+                        Array.from(partyTitleHashB),
+                    )
+                    .accountsPartial({
+                        voter: voter1.publicKey,
+                        poll: pollPda,
+                        party: partyBPda,
+                        voterPda,
+                        systemProgram: SystemProgram.programId,
+                    })
+                    .signers([voter1])
+                    .rpc();
+                expect.fail("negative vote befare all positive votes were used should thrown MustUseAllPositiveVoices error");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("MustUseAllPositiveVoices"))).to.equal(true);
+            }
+
+        })
+        it("can not use negative vote for REWARD party before all positive votes were used", async () => {
+
+            const voterAta = (await PublicKey.findProgramAddressSync(
+                [
+                    voter1.publicKey.toBuffer(),
+                    TOKEN_PROGRAM_ID.toBuffer(),
+                    mintPdaB.toBuffer()
+                ],
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            ))[0]
+
+            try {
+                await program.methods 
+                    .rewardVote(
+                        Array.from(pollTitleHash),
+                        Array.from(pollDescHash),
+                        {negative: {}},
+                        Array.from(partyTitleHashB),
+                    )
+                    .accountsPartial({
+                        voter: voter1.publicKey,
+                        poll: pollPda,
+                        party: partyBPda,
+                        voterPda: voter1Pda,
+                        mint: mintPdaB,
+                        voterAta,
+                        tokenProgram: TOKEN_PROGRAM_ID,
+                        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                        systemProgram: SystemProgram.programId,
+                    })
+                    .signers([voter1])
+                    .rpc();
+                    expect.fail("negative vote befare all positive votes were used should thrown MustUseAllPositiveVoices error");
+            } catch (err: any) {
+                    const logs = err.logs ?? (err.error?.logs ?? []);
+                    expect(logs.some((l: string) => l.includes("MustUseAllPositiveVoices"))).to.equal(true);
+            }
+        })
+        it("successfully positive vote for REWARD party B", async () => {
 
             const voterAta = (await PublicKey.findProgramAddressSync(
                 [
@@ -456,6 +702,7 @@ describe("Janecek-Tests", () => {
             const partyAccB = await program.account.partyAccount.fetch(partyBPda);
             expect(partyAccB.rewardEnabled).to.equal(true);
             expect(partyAccB.positiveVotes.toNumber()).to.equal(1);
+            expect(partyAccB.negativeVotes.toNumber()).to.equal(0);
             expect(partyAccB.mintAddress.toBase58()).to.equal(mintPdaB.toBase58());
 
             // Fetch party from blockchain
@@ -464,10 +711,127 @@ describe("Janecek-Tests", () => {
             expect(voterAcc.initialized).to.equal(true);
             expect(voterAcc.positiveUsed).to.equal(2);
             expect(voterAcc.negativeUsed).to.equal(0);
+            expect(votedParties.some((pk) => pk.equals(partyAPda))).to.equal(true);
             expect(votedParties.some((pk) => pk.equals(partyBPda))).to.equal(true);
 
             const balance = await connection.getTokenAccountBalance(voterAta);
             expect(Number(balance.value.amount)).to.equal(1);
+
+            // Fetch mint Acc from blockchain
+            const mintAcc = await getMint(
+                connection,
+                mintPdaB
+            );
+            expect(Number(mintAcc.supply)).to.equal(1);
+            expect(mintAcc.decimals).to.equal(0);
+            expect(mintAcc.mintAuthority?.equals(partyBPda)).to.equal(true);
+            expect(mintAcc.freezeAuthority).to.equal(null);
+
+        })
+        it("can not vote for the same REWARD party B", async () => {
+
+            const voterAta = (await PublicKey.findProgramAddressSync(
+                [
+                    voter1.publicKey.toBuffer(),
+                    TOKEN_PROGRAM_ID.toBuffer(),
+                    mintPdaB.toBuffer()
+                ],
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            ))[0]
+
+            try {
+                await program.methods 
+                    .rewardVote(
+                        Array.from(pollTitleHash),
+                        Array.from(pollDescHash),
+                        {positive: {}},
+                        Array.from(partyTitleHashB),
+                    )
+                    .accountsPartial({
+                        voter: voter1.publicKey,
+                        poll: pollPda,
+                        party: partyBPda,
+                        voterPda: voter1Pda,
+                        mint: mintPdaB,
+                        voterAta,
+                        tokenProgram: TOKEN_PROGRAM_ID,
+                        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                        systemProgram: SystemProgram.programId,
+                    })
+                    .signers([voter1])
+                    .rpc();
+                    expect.fail("Second vote should have thrown AlreadyVoted error");
+            } catch (err: any) {
+                    const logs = err.logs ?? (err.error?.logs ?? []);
+                    expect(logs.some((l: string) => l.includes("AlreadyVoted"))).to.equal(true);
+            }
+        })
+        it("successfully negative vote for reward party C", async () => {
+
+            const voterAta = (await PublicKey.findProgramAddressSync(
+                [
+                    voter1.publicKey.toBuffer(),
+                    TOKEN_PROGRAM_ID.toBuffer(),
+                    mintPdaC.toBuffer()
+                ],
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            ))[0]
+
+            const txSignature = await program.methods 
+                .rewardVote(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                    {negative: {}},
+                    Array.from(partyTitleHashC),
+                )
+                .accountsPartial({
+                    voter: voter1.publicKey,
+                    poll: pollPda,
+                    party: partyCPda,
+                    voterPda: voter1Pda,
+                    mint: mintPdaC,
+                    voterAta,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                })
+                .signers([voter1])
+                .rpc();
+
+            console.log("[vote reward party] -> TX signature:", txSignature);
+            await connection.confirmTransaction(txSignature, "confirmed");
+
+            // Fetch party from blockchain
+            const partyAccC = await program.account.partyAccount.fetch(partyCPda);
+            expect(partyAccC.rewardEnabled).to.equal(true);
+            expect(partyAccC.positiveVotes.toNumber()).to.equal(0);
+            expect(partyAccC.negativeVotes.toNumber()).to.equal(1);
+            expect(partyAccC.mintAddress.toBase58()).to.equal(mintPdaC.toBase58());
+
+            // Fetch voter from blockchain
+            const voterAcc = await program.account.voterAccount.fetch(voter1Pda);
+            const votedParties = voterAcc.votedParties.map((bytes) => new PublicKey(bytes));
+            expect(voterAcc.initialized).to.equal(true);
+            expect(voterAcc.positiveUsed).to.equal(2);
+            expect(voterAcc.negativeUsed).to.equal(1);
+            expect(votedParties.some((pk) => pk.equals(partyAPda))).to.equal(true);
+            expect(votedParties.some((pk) => pk.equals(partyBPda))).to.equal(true);
+            expect(votedParties.some((pk) => pk.equals(partyCPda))).to.equal(true);
+
+            // Fetch мщеу ATA from blockchain
+            const ataAcc = await connection.getAccountInfo(voterAta);
+            expect(ataAcc).to.be.null;
+
+            // Fetch mint Acc from blockchain
+            const mintAcc = await getMint(
+                connection,
+                mintPdaC
+            );
+            expect(Number(mintAcc.supply)).to.equal(0);
+            expect(mintAcc.decimals).to.equal(0);
+            expect(mintAcc.mintAuthority?.equals(partyCPda)).to.equal(true);
+            expect(mintAcc.freezeAuthority).to.equal(null);
+
         })
     })
 
@@ -496,16 +860,53 @@ describe("Janecek-Tests", () => {
                 expect(pollAcc.title).to.equal(pollTitle);
                 expect(pollAcc.description).to.equal(pollDesc);
                 expect(pollAcc.phase).to.deep.equal({ results: {} });
-                expect(pollAcc.partyCounter.toNumber()).to.equal(2);
+                expect(pollAcc.partyCounter.toNumber()).to.equal(3);
                 expect(pollAcc.owner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
                 expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
 
                 // created_at > 0
                 expect(pollAcc.votingStartAt.toNumber()).to.be.greaterThan(0);
+        })
 
-                console.log("*** Voting was closed ***");
-
-
+        it("can not close voting again", async () => {
+            try {
+                await program.methods   
+                .finishVoting(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                )
+                .accountsPartial({
+                    anyone: randomUser.publicKey,
+                    poll: pollPda
+                })
+                .signers([randomUser]) 
+                .rpc();
+                expect.fail("attempt to finish voting should throw NotInVotingPhase error");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("NotInVotingPhase"))).to.equal(true);
+            }
+        })
+       
+        it("can not start voting after it was closed", async () => {
+            try {
+                await program.methods
+                .initVoting(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                )
+                .accountsPartial({
+                    owner: pollOwner.publicKey,
+                    poll: pollPda
+                })
+                .rpc();
+                expect.fail("Resrart should throw NotInRegistrationPhase error");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("NotInRegistrationPhase"))).to.equal(true);
+            }
         })
     })
 
@@ -533,12 +934,9 @@ describe("Janecek-Tests", () => {
             expect(pollAcc.title).to.equal(pollTitle);
             expect(pollAcc.description).to.equal(pollDesc);
             expect(pollAcc.phase).to.deep.equal({ results: {} });
-            expect(pollAcc.partyCounter.toNumber()).to.equal(2);
+            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
             expect(pollAcc.owner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
             expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
-
-            console.log("*** Init owner transfer ***");
-            
         })
     })
 
@@ -566,12 +964,9 @@ describe("Janecek-Tests", () => {
             expect(pollAcc.title).to.equal(pollTitle);
             expect(pollAcc.description).to.equal(pollDesc);
             expect(pollAcc.phase).to.deep.equal({ results: {} });
-            expect(pollAcc.partyCounter.toNumber()).to.equal(2);
+            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
             expect(pollAcc.owner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
             expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
-
-            console.log("*** Accept owner transfer started ***");
-            
         })
     })
 });
