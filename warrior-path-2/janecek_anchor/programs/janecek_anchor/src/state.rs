@@ -28,6 +28,7 @@ pub struct PollAccount {
     pub expected_new_owner: Pubkey,
     pub created_at: i64,
     pub voting_start_at: i64,
+    pub bump: u8,
 }
 
 
@@ -55,6 +56,7 @@ pub struct VoterAccount {
     pub positive_used: u8,
     pub negative_used: u8,
     pub voted_parties: [Pubkey; 3],
+    pub bump: u8
 }
 
 

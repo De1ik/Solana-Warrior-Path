@@ -254,7 +254,56 @@ describe("Janecek-Tests", () => {
 
             console.log("Non-reward Party PDA created at:", partyPda.toBase58());
         });
+        it("can not create party by non-owner", async () => {
+            const creator = pollOwner2;
+            const partyTitle = "Party B";
+            const rewardEnabled = false;
 
+            // Compute party title hash
+            const partyTitleHash = crypto.createHash("sha256").update(partyTitle, "utf8").digest();
+
+            // Derive Party PDA
+            const [partyPda, partyBump] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("party"),
+                    pollPda.toBuffer(),
+                    partyTitleHash
+                ],
+                program.programId
+            );
+
+            const [mintPda] = PublicKey.findProgramAddressSync(
+                [Buffer.from("mint"), pollPda.toBuffer(), partyTitleHash],
+                program.programId
+            );
+
+            try {
+                await program.methods
+                .initParty(
+                    partyTitle,
+                    Array.from(partyTitleHash),
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                    rewardEnabled
+                )
+                .accountsPartial({
+                    creator: creator.publicKey,
+                    poll: pollPda,
+                    party: partyPda,
+                    mint: mintPda,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    systemProgram: SystemProgram.programId,
+                })
+                .signers([creator])
+                .rpc();
+                expect.fail("Party can be created just by the poll owner");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("Unauthorized"))).to.equal(true);
+            }
+
+        })
         it("creates a new party PDA B with reward", async () => {
             const creator = pollOwner;
             const partyTitle = "Party B";
@@ -336,7 +385,6 @@ describe("Janecek-Tests", () => {
 
             console.log("Reward Party PDA with reward created at:", partyPda.toBase58());
         });
-
         it("creates a new party PDA C with reward", async () => {
             const creator = pollOwner;
             const partyTitle = "Party C";
@@ -419,6 +467,66 @@ describe("Janecek-Tests", () => {
             console.log("Reward Party PDA with reward created at:", partyPda.toBase58());
         });
     })
+
+    describe("init-owner-transfer", () => {
+        it("successfully init owner transfer", async () => {
+            const txSignature = await program.methods
+                .initOwnerTransfer(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                    pollOwner2.publicKey
+                )
+                .accountsPartial({
+                    owner: pollOwner.publicKey,
+                    poll: pollPda
+                })
+                .rpc();
+
+            console.log("[init owner transfer] -> TX signature:", txSignature);
+            await connection.confirmTransaction(txSignature, "confirmed");
+
+            // Fetch party from blockchain
+            const pollAcc = await program.account.pollAccount.fetch(pollPda);
+
+            // Validate creation
+            expect(pollAcc.title).to.equal(pollTitle);
+            expect(pollAcc.description).to.equal(pollDesc);
+            expect(pollAcc.phase).to.deep.equal({ registration: {} });
+            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
+            expect(pollAcc.owner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
+            expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
+        })
+    })
+
+    describe("accept-owner-transfer", () => {
+        it("successfully accept owner transfer", async () => {
+            const txSignature = await program.methods
+                .acceptOwner(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                )
+                .accountsPartial({
+                    expectedOwner: pollOwner2.publicKey,
+                    poll: pollPda
+                })
+                .signers([pollOwner2])
+                .rpc();
+
+            console.log("[accept owner transfer] -> TX signature:", txSignature);
+            await connection.confirmTransaction(txSignature, "confirmed");
+
+            // Fetch party from blockchain
+            const pollAcc = await program.account.pollAccount.fetch(pollPda);
+
+            // Validate creation
+            expect(pollAcc.title).to.equal(pollTitle);
+            expect(pollAcc.description).to.equal(pollDesc);
+            expect(pollAcc.phase).to.deep.equal({ registration: {} });
+            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
+            expect(pollAcc.owner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
+            expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
+        })
+    })
  
     describe("start-voting", () => {
         it("can not finish voting from registration phase", async () => {
@@ -442,8 +550,30 @@ describe("Janecek-Tests", () => {
             }
         })
 
-        it("successfully start voting", async () => {
+        it("can not start voting by non-owner", async () => {
             const owner = pollOwner;
+
+            try {
+                await program.methods
+                .initVoting(
+                    Array.from(pollTitleHash),
+                    Array.from(pollDescHash),
+                )
+                .accountsPartial({
+                    owner: owner.publicKey,
+                    poll: pollPda
+                })
+                .rpc();
+                expect.fail("can not start voting by non-owner");
+        
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("Unauthorized"))).to.equal(true);
+            }
+        })
+
+        it("successfully start voting", async () => {
+            const owner = pollOwner2;
             
             const txSignature = await program.methods
                 .initVoting(
@@ -454,6 +584,7 @@ describe("Janecek-Tests", () => {
                     owner: owner.publicKey,
                     poll: pollPda
                 })
+                .signers([owner])
                 .rpc();
 
             console.log("[start voting] -> TX signature:", txSignature);
@@ -485,9 +616,10 @@ describe("Janecek-Tests", () => {
                     Array.from(pollDescHash),
                 )
                 .accountsPartial({
-                    owner: pollOwner.publicKey,
+                    owner: pollOwner2.publicKey,
                     poll: pollPda
                 })
+                .signers([pollOwner2])
                 .rpc();
                 expect.fail("Resrart should throw NotInRegistrationPhase error");
         
@@ -861,8 +993,8 @@ describe("Janecek-Tests", () => {
                 expect(pollAcc.description).to.equal(pollDesc);
                 expect(pollAcc.phase).to.deep.equal({ results: {} });
                 expect(pollAcc.partyCounter.toNumber()).to.equal(3);
-                expect(pollAcc.owner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
-                expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
+                expect(pollAcc.owner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
+                expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
 
                 // created_at > 0
                 expect(pollAcc.votingStartAt.toNumber()).to.be.greaterThan(0);
@@ -897,76 +1029,17 @@ describe("Janecek-Tests", () => {
                     Array.from(pollDescHash),
                 )
                 .accountsPartial({
-                    owner: pollOwner.publicKey,
-                    poll: pollPda
-                })
-                .rpc();
-                expect.fail("Resrart should throw NotInRegistrationPhase error");
-        
-            } catch (err: any) {
-                const logs = err.logs ?? (err.error?.logs ?? []);
-                expect(logs.some((l: string) => l.includes("NotInRegistrationPhase"))).to.equal(true);
-            }
-        })
-    })
-
-    describe("init-owner-transfer", () => {
-        it("successfully init owner transfer", async () => {
-            const txSignature = await program.methods
-                .initOwnerTransfer(
-                    Array.from(pollTitleHash),
-                    Array.from(pollDescHash),
-                    pollOwner2.publicKey
-                )
-                .accountsPartial({
-                    owner: pollOwner.publicKey,
-                    poll: pollPda
-                })
-                .rpc();
-
-            console.log("[init owner transfer] -> TX signature:", txSignature);
-            await connection.confirmTransaction(txSignature, "confirmed");
-
-            // Fetch party from blockchain
-            const pollAcc = await program.account.pollAccount.fetch(pollPda);
-
-            // Validate creation
-            expect(pollAcc.title).to.equal(pollTitle);
-            expect(pollAcc.description).to.equal(pollDesc);
-            expect(pollAcc.phase).to.deep.equal({ results: {} });
-            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
-            expect(pollAcc.owner.toBase58()).to.equal(pollOwner.publicKey.toBase58());
-            expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
-        })
-    })
-
-    describe("accept-owner-transfer", () => {
-        it("successfully accept owner transfer", async () => {
-            const txSignature = await program.methods
-                .acceptOwner(
-                    Array.from(pollTitleHash),
-                    Array.from(pollDescHash),
-                )
-                .accountsPartial({
-                    expectedOwner: pollOwner2.publicKey,
+                    owner: pollOwner2.publicKey,
                     poll: pollPda
                 })
                 .signers([pollOwner2])
                 .rpc();
+                expect.fail("Restart should throw NotInRegistrationPhase error");
 
-            console.log("[accept owner transfer] -> TX signature:", txSignature);
-            await connection.confirmTransaction(txSignature, "confirmed");
-
-            // Fetch party from blockchain
-            const pollAcc = await program.account.pollAccount.fetch(pollPda);
-
-            // Validate creation
-            expect(pollAcc.title).to.equal(pollTitle);
-            expect(pollAcc.description).to.equal(pollDesc);
-            expect(pollAcc.phase).to.deep.equal({ results: {} });
-            expect(pollAcc.partyCounter.toNumber()).to.equal(3);
-            expect(pollAcc.owner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
-            expect(pollAcc.expectedNewOwner.toBase58()).to.equal(pollOwner2.publicKey.toBase58());
+            } catch (err: any) {
+                const logs = err.logs ?? (err.error?.logs ?? []);
+                expect(logs.some((l: string) => l.includes("NotInRegistrationPhase"))).to.equal(true);
+            }
         })
     })
 });

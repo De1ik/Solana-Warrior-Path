@@ -11,13 +11,21 @@ pub enum JanecekError {
     InvalidDescriptionLength,
     #[msg("Mint account already initialized.")]
     MintAlreadyExists,
+    #[msg("Invalid mint owner.")]
+    InvalidMintOwner,
     #[msg("Poll title hash mismatch")]
     PollTitleHashMismatch,
     #[msg("Poll description hash mismatch")]
     PollDescriptionHashMismatch,
-    #[msg("User is not the owner of provided PDA")]
+    #[msg("Unauthorized")]
     Unauthorized,
-    
+
+    #[msg("Invalid poll address")]
+    InvalidPollAddress,
+
+    #[msg("Counter overflow")]
+    CounterOverflow,
+
     #[msg("Not in registration phase")]
     NotInRegistrationPhase,
     #[msg("Registration must be minimum 24h")]

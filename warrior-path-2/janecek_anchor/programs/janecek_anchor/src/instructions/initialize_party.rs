@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token};
 use anchor_lang::solana_program::hash::hash;
+use anchor_lang::system_program;
 
 use crate::state::{PartyAccount, PollAccount};
 use crate::errors::JanecekError;
@@ -38,6 +39,7 @@ pub fn initialize_party(
 
         require!(mint_info.data_is_empty(), JanecekError::MintAlreadyExists);
         require!(mint_info.is_writable, JanecekError::InvalidMint);
+        require!(mint_info.owner == &system_program::ID, JanecekError::InvalidMintOwner);
 
         let party_key = party.key();
         let poll_key = poll.key();
@@ -85,7 +87,6 @@ pub fn initialize_party(
         // сохраняем mint адрес
         party.mint_address = Some(mint_info.key());
     } else {
-        // Без награды — пустой mint
         party.mint_address = None;
     }
     
@@ -100,9 +101,10 @@ pub struct InitializeParty<'info> {
     pub creator: Signer<'info>,
 
     #[account(
+        constraint = poll.owner == creator.key() @ JanecekError::Unauthorized,
         mut,
         seeds = [b"poll", poll_title_hash.as_ref(), poll_description_hash.as_ref()],
-        bump
+        bump = poll.bump,
     )]
     pub poll: Account<'info, PollAccount>,
 
@@ -115,8 +117,7 @@ pub struct InitializeParty<'info> {
     )]
     pub party: Account<'info, PartyAccount>,
 
-    /// CHECK: создаём при необходимости токен
-    /// mut только когда reward_enabled = true, иначе может быть любой account
+    /// CHECK: create just when we need it
     #[account(
         mut,
         seeds = [b"mint", poll.key().as_ref(), party_title_hash.as_ref()],

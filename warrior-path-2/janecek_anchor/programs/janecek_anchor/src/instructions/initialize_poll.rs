@@ -34,6 +34,7 @@ pub fn initialize_poll(
     poll.expected_new_owner = ctx.accounts.creator.key();
     poll.created_at = Clock::get()?.unix_timestamp;
     poll.voting_start_at = 0;
+    poll.bump = ctx.bumps.poll;
 
     Ok(())
 }

@@ -24,7 +24,7 @@ pub struct AcceptOwnerTransfer<'info> {
     #[account(
         mut,
         seeds = [b"poll", poll_title_hash.as_ref(), poll_description_hash.as_ref()],
-        bump
+        bump = poll.bump,
     )]
     pub poll: Account<'info, PollAccount>
 }

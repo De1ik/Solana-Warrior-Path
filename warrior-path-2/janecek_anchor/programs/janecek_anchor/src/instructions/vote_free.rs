@@ -3,6 +3,7 @@ use crate::state::{PartyAccount, PollAccount, VoterAccount, VotingPhase, VoteTyp
 use crate::errors::JanecekError;
 
 
+
 pub fn vote_free(
     ctx: Context<FreeVote>, 
     vote_type: VoteType,
@@ -27,21 +28,30 @@ pub fn vote_free(
         voter_pda.positive_used = 0;
         voter_pda.negative_used = 0;
         voter_pda.voted_parties = [Pubkey::default(); 3];
-    }
+        voter_pda.bump = ctx.bumps.voter_pda;
+    } 
+    // else {
+    //     require_keys_eq!(voter_pda.poll_addr, poll.key(), JanecekError::InvalidVoterPda);
+    //     require_keys_eq!(voter_pda.voter_addr, ctx.accounts.voter.key(), JanecekError::InvalidVoterPda);
+    // }
 
     require!(!voter_pda.voted_parties.contains(&party.key()), JanecekError::AlreadyVoted);
 
     if vote_type == VoteType::Positive {
         require!(voter_pda.positive_used < 2, JanecekError::NoPositiveVoice);
 
-        party.positive_votes += 1;
         voter_pda.positive_used += 1;
+        party.positive_votes = party.positive_votes
+            .checked_add(1)
+            .ok_or(JanecekError::CounterOverflow)?;
 
     } else if vote_type == VoteType::Negative {
         require!(voter_pda.positive_used == 2, JanecekError::MustUseAllPositiveVoices);
         require!(voter_pda.negative_used == 0, JanecekError::NoNegativeVoice);
 
-        party.negative_votes += 1;
+        party.negative_votes = party.negative_votes
+            .checked_add(1)
+            .ok_or(JanecekError::CounterOverflow)?;
         voter_pda.negative_used += 1;
     }
 
@@ -70,14 +80,15 @@ pub struct FreeVote<'info> {
     #[account(
         mut,
         seeds = [b"poll", poll_title_hash.as_ref(), poll_description_hash.as_ref()],
-        bump
+        bump = poll.bump,
     )]
     pub poll: Account<'info, PollAccount>,
 
     #[account(
         mut,
         seeds = [b"party", poll.key().as_ref(), party_title_hash.as_ref()],
-        bump
+        bump = party.bump,
+        constraint = party.poll_address == poll.key() @ JanecekError::InvalidPollAddress,
     )]
     pub party: Account<'info, PartyAccount>,
 
