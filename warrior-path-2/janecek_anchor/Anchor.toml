@@ -7,6 +7,7 @@ skip-lint = false
 
 [programs.localnet]
 janecek_anchor = "4iXWdAoeJQMVr39ZhziS4hDfTz9K1soQTN88NLDwwinH"
+hook_program = "DBkCSr6ZXmYzXUecrtBSrzctRJCSdPCXhGpR1DPAx7At"
 
 [registry]
 url = "https://api.apr.dev"

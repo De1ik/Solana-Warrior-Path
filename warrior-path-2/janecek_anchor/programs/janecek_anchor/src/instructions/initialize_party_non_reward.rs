@@ -1,14 +1,16 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token};
 use anchor_lang::solana_program::hash::hash;
 use anchor_lang::system_program;
+
+use anchor_spl::token_interface::{TokenInterface, Mint};
+use anchor_spl::token::{self, Mint as Mint2, Token};
 
 use crate::state::{PartyAccount, PollAccount};
 use crate::errors::JanecekError;
 
 
-pub fn initialize_party(
-    ctx: Context<InitializeParty>,
+pub fn initialize_party_non_reward(
+    ctx: Context<InitializePartyNonReward>,
     title: String,
     title_hash: [u8; 32],
     reward_enabled: bool,
@@ -32,6 +34,7 @@ pub fn initialize_party(
     party.bump = ctx.bumps.party;
     party.positive_votes = 0;
     party.negative_votes = 0;
+    party.mint_address = None;
 
     if reward_enabled {
         let mint_info = &ctx.accounts.mint;
@@ -43,7 +46,7 @@ pub fn initialize_party(
 
         let party_key = party.key();
         let poll_key = poll.key();
-        let lamports = rent.minimum_balance(Mint::LEN);
+        let lamports = rent.minimum_balance(anchor_spl::token_interface::Mint::LEN);
 
         let mint_seeds: &[&[u8]] = &[
             b"mint",
@@ -67,7 +70,7 @@ pub fn initialize_party(
         anchor_lang::system_program::create_account(
             cpi_ctx,
             lamports,
-            Mint::LEN as u64,
+            anchor_spl::token_interface::Mint::LEN as u64,
             &ctx.accounts.token_program.key(),
         )?;
 
@@ -96,7 +99,7 @@ pub fn initialize_party(
 
 #[derive(Accounts)]
 #[instruction(_party_title: String, party_title_hash: [u8; 32], poll_title_hash: [u8; 32], poll_description_hash: [u8; 32], _reward_enabled: bool)]
-pub struct InitializeParty<'info> {
+pub struct InitializePartyNonReward<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
 
@@ -117,15 +120,6 @@ pub struct InitializeParty<'info> {
     )]
     pub party: Account<'info, PartyAccount>,
 
-    /// CHECK: create just when we need it
-    #[account(
-        mut,
-        seeds = [b"mint", poll.key().as_ref(), party_title_hash.as_ref()],
-        bump
-    )]
-    pub mint: UncheckedAccount<'info>,
-
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }

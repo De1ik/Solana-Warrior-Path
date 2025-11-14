@@ -1,8 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    token::{self, Mint, TokenAccount, MintTo, Token},
+    // token::{self, Mint, TokenAccount, MintTo, Token},
+    token_interface::{TokenInterface, TokenAccount, Mint, mint_to, MintTo},
     associated_token::AssociatedToken,
 };
+
+
+
+
 use crate::state::{PartyAccount, PollAccount, VoterAccount, VotingPhase, VoteType};
 use crate::errors::JanecekError;
 
@@ -46,13 +51,13 @@ pub struct RewardVote<'info> {
         seeds = [b"mint", poll.key().as_ref(), party_title_hash.as_ref()],
         bump
     )]
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
 
     /// CHECK: ATA may or may not exist; validated in handler
     #[account(mut)]
     pub voter_ata: UncheckedAccount<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
@@ -149,7 +154,7 @@ pub fn vote_with_reward(
             signer_seeds
         );
 
-        token::mint_to(cpi_ctx, 1)?;
+        mint_to(cpi_ctx, 1)?;
 
     } else if vote_type == VoteType::Negative {
         require!(voter_pda.positive_used == 2, JanecekError::MustUseAllPositiveVoices);
