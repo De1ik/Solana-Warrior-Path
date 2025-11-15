@@ -797,6 +797,8 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "hook_program",
+ "spl-tlv-account-resolution 0.9.0",
+ "spl-transfer-hook-interface 0.9.0",
 ]
 
 [[package]]

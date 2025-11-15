@@ -1,5 +1,6 @@
 pub mod initialize_poll;
-pub mod initialize_party;
+pub mod initialize_party_with_reward;
+pub mod initialize_party_non_reward;
 pub mod initiate_owner_transfer;
 pub mod accept_owner_transfer;
 pub mod start_voting;
@@ -8,7 +9,8 @@ pub mod vote_free;
 pub mod vote_with_reward;
 
 pub use initialize_poll::*;
-pub use initialize_party::*;
+pub use initialize_party_with_reward::*;
+pub use initialize_party_non_reward::*;
 pub use initiate_owner_transfer::*;
 pub use accept_owner_transfer::*;
 pub use start_voting::*;

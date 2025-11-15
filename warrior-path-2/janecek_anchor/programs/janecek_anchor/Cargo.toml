@@ -26,4 +26,6 @@ custom-panic = []
 [dependencies]
 anchor-lang = {version = "0.31.1", features = ["init-if-needed"]}
 anchor-spl = { version = "0.31.1", features = ["token_2022", "token_2022_extensions", "associated_token"] }
+spl-tlv-account-resolution = "0.9.0"
+spl-transfer-hook-interface = "0.9.0"
 hook_program = { path = "../hook_program", features = ["no-entrypoint"] }

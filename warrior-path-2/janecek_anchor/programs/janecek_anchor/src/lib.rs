@@ -30,8 +30,8 @@ pub mod janecek_anchor {
         )
     }
 
-    pub fn init_party(
-        ctx: Context<InitializeParty>,
+    pub fn init_reward_party(
+        ctx: Context<InitializePartyWithReward>,
         party_title: String,
         party_title_hash: [u8; 32],
         _poll_title_hash: [u8; 32],
@@ -39,7 +39,25 @@ pub mod janecek_anchor {
         reward_enabled: bool,
     ) -> Result<()> {
 
-        initialize_party(
+        initialize_party_with_reward(
+            ctx,
+            party_title,
+            party_title_hash,
+            reward_enabled
+        )
+    }
+
+
+    pub fn init_non_reward_party(
+        ctx: Context<InitializePartyNonReward>,
+        party_title: String,
+        party_title_hash: [u8; 32],
+        _poll_title_hash: [u8; 32],
+        _poll_description_hash: [u8; 32],
+        reward_enabled: bool,
+    ) -> Result<()> {
+
+        initialize_party_non_reward(
             ctx,
             party_title,
             party_title_hash,
