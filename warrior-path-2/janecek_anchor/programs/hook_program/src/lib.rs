@@ -1,44 +1,58 @@
-use anchor_lang::{
-    prelude::*,
-    system_program::{create_account, CreateAccount},
-};
+use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::AssociatedToken,
-    token_interface::{Mint, TokenAccount, TokenInterface},
+    token_interface::{Mint, TokenAccount},
 };
-use spl_tlv_account_resolution::{
-    state::ExtraAccountMetaList,
+
+use anchor_spl::token_2022::spl_token_2022::{
+    extension::{
+        permanent_delegate::PermanentDelegate,
+        StateWithExtensions,
+        BaseStateWithExtensions,
+    },
+    state::Mint as Mint2022,
 };
-use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookInstruction};
 
 declare_id!("DBkCSr6ZXmYzXUecrtBSrzctRJCSdPCXhGpR1DPAx7At");
 
 #[program]
 pub mod transfer_hook {
     use super::*;
+    pub fn transfer_hook(ctx: Context<TransferHook>, _amount: u64) -> Result<()> {
+        let signer = &ctx.accounts.owner;
+        let source_token = &ctx.accounts.source_token;
+        let mint_acc = &ctx.accounts.mint;
 
-    pub fn transfer_hook(ctx: Context<TransferHook>, amount: u64) -> Result<()> {
+
+        let mint_info = mint_acc.to_account_info();
+        let mint_data = mint_info.try_borrow_data()?;
+
+        let mint_with_ext = StateWithExtensions::<Mint2022>::unpack(&mint_data)?;
+
+        let mut perm_delegate = Pubkey::default();
+
+        // Permanent delegate check
+        if let Ok(ext) = mint_with_ext.get_extension::<PermanentDelegate>() {
+            perm_delegate = ext.delegate.0.key();
+        }
+
+        require!(perm_delegate == signer.key() || source_token.owner == signer.key(), HookError::Unauthorized);
 
         msg!("Hello Transfer Hook!");
-
         Ok(())
     }
 
-    // fallback instruction handler as workaround to anchor instruction discriminator check
+
+    // fallback instruction handler (оставляем как есть)
     pub fn fallback<'info>(
         program_id: &Pubkey,
         accounts: &'info [AccountInfo<'info>],
         data: &[u8],
     ) -> Result<()> {
-        let instruction = TransferHookInstruction::unpack(data)?;
+        let instruction = spl_transfer_hook_interface::instruction::TransferHookInstruction::unpack(data)?;
 
-        // match instruction discriminator to transfer hook interface execute instruction  
-        // token2022 program CPIs this instruction on token transfer
         match instruction {
-            TransferHookInstruction::Execute { amount } => {
+            spl_transfer_hook_interface::instruction::TransferHookInstruction::Execute { amount } => {
                 let amount_bytes = amount.to_le_bytes();
-
-                // invoke custom transfer hook instruction on our program
                 __private::__global::transfer_hook(program_id, accounts, &amount_bytes)
             }
             _ => return Err(ProgramError::InvalidInstructionData.into()),
@@ -47,22 +61,27 @@ pub mod transfer_hook {
 }
 
 
-// Order of accounts matters for this struct.
-// The first 4 accounts are the accounts required for token transfer (source, mint, destination, owner)
-// Remaining accounts are the extra accounts required from the ExtraAccountMetaList account
-// These accounts are provided via CPI to this program from the token2022 program
 #[derive(Accounts)]
 pub struct TransferHook<'info> {
     #[account(
-        token::mint = mint, 
-        token::authority = owner,
+        token::mint = mint,
     )]
     pub source_token: InterfaceAccount<'info, TokenAccount>,
+
     pub mint: InterfaceAccount<'info, Mint>,
+
     #[account(
         token::mint = mint,
     )]
     pub destination_token: InterfaceAccount<'info, TokenAccount>,
-    /// CHECK: source token account owner, can be SystemAccount or PDA owned by another program
+
+    /// CHECK: signer (может быть owner или permanent delegate)
     pub owner: UncheckedAccount<'info>,
+}
+
+
+#[error_code]
+pub enum HookError {
+    #[msg("Authority is neither owner nor permanent delegate")]
+    Unauthorized,
 }

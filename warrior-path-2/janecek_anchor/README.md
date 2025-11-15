@@ -1,6 +1,6 @@
 # Janeček Anchor Program
 
-A Solana Anchor program implementing a Janeček-style voting system with optional token rewards per party. The workspace includes the on-chain program, TypeScript test scaffold, and Anchor configuration for local development.
+A Solana Anchor program implementing a Janeček-style voting system with optional token rewards per party. The workspace includes on-chain programs, TypeScript test, and Anchor configuration for local development.
 
 ## Quick Start
 
@@ -29,7 +29,8 @@ Implement a poll-based Janeček voting system with optional token rewards:
 
 - Instructions
   - `init_poll`: Creates a poll PDA seeded by `hash(title)` and `hash(description)`; validates provided hashes; sets phase to Registration and records timestamps and owner.
-  - `init_party`: Creates a party PDA under a poll; validates `hash(title)`; when `reward_enabled`, lazily creates and initializes a `Mint` PDA for the party.
+  - `init_reward_party`: Creates a party PDA under a poll with reward enabled feature; validates `hash(title)`, lazily creates and initializes a `Mint` PDA for the party.
+  - `init_non_reward_party`: Creates a party PDA under a poll without enabled reward feature; validates `hash(title)`;
   - `init_owner_transfer` / `accept_owner`: Two-step owner transfer using `expected_new_owner`.
   - `start_voting`: Transitions from Registration to Voting; enforces a minimum registration duration (0 in `test-fast`).
   - `finish_voting`: Transitions from Voting to Results; enforces a minimum voting duration (0 in `test-fast`).
@@ -45,6 +46,25 @@ Implement a poll-based Janeček voting system with optional token rewards:
   - Mint (reward): `seeds = [b"mint", poll.key(), hash(party_title)]`.
   - Voter state: `seeds = [b"voter", poll.key(), voter.key()]`.
 
+- SPL Token-2022 Reward Mint
+  - Rewarded parties create a dedicated mint with SPL Token-2022 extensions enabled.
+  - `extensions::transfer_hook` wires the mint to the hook program so every token transfer triggers our custom logic.
+  - `extensions::permanent_delegate` points at `GLOBAL_PERMANENT_DELEGATE`, giving a trusted authority the ability to step in when users need recovery or enforcement.
+
+## Transfer Hook Program & Token-2022 Extensions
+
+Reward tokens rely on Token-2022 features so we can encode transfer rules directly into the mint:
+
+- `initialize_party_with_reward` ( `programs/janecek_anchor/src/instructions/initialize_party_with_reward.rs`) initializes the mint with the transfer-hook extension targeting the `hook_program` located at `programs/hook_program`. The party PDA is both the mint authority and the hook authority.
+- The same CPI call sets the permanent delegate extension to the `GLOBAL_PERMANENT_DELEGATE` constant defined in `programs/janecek_anchor/src/lib.rs`. This delegate can always authorize transfers, which the hook program also recognizes.
+- When `reward_vote` mints the 1-token reward, it relies on the Token-2022 interface so that future transfers automatically run through the hook without extra instructions from clients.
+
+The hook program keeps the enforcement tight:
+
+- `programs/hook_program/src/lib.rs` reads the mint data with `StateWithExtensions<Mint2022>` and extracts the `PermanentDelegate` extension when present.
+- Transfers succeed only if the signer passed to the hook matches either the owner of the source token account or the recorded permanent delegate; otherwise it throws `HookError::Unauthorized`.
+- The entrypoint implements the SPL Transfer Hook Interface via the `fallback` handler so SPL Token-2022 runtimes can dispatch the standard `Execute` instruction to the Anchor-generated `transfer_hook`.
+
 - Feature flag
   - Cargo feature `test-fast` defined in `programs/janecek_anchor/Cargo.toml` and used in phase timing checks.
 
@@ -54,6 +74,7 @@ Implement a poll-based Janeček voting system with optional token rewards:
 - `programs/janecek_anchor` — On-chain program source.
   - `src/lib.rs`, `src/instructions/*`, `src/state.rs`, `src/errors.rs`.
   - `Cargo.toml` — includes the `test-fast` feature.
+- `programs/hook_program` — Transfer-hook validator built with Anchor + SPL Token-2022 that guards every reward-token transfer.
 - `tests/janecek_anchor.ts` — TypeScript test scaffold (commented by default).
 - `package.json` — JS deps and prettier scripts; Anchor runs `ts-mocha` via `Anchor.toml`.
 
@@ -96,4 +117,3 @@ Command summary:
 - `solana-test-validator` — Start a validator manually (Anchor will start one automatically for tests).
 - `anchor build -- --features test-fast` — Build with fast test feature.
 - `anchor test -- --features test-fast` — Run tests with fast phase transitions.
-

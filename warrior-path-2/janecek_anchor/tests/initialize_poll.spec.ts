@@ -14,6 +14,8 @@ import {
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccountInstruction,
     createTransferCheckedWithTransferHookInstruction,
+    createMintToCheckedInstruction,
+    getAccount,
 } from "@solana/spl-token";
 
 
@@ -24,13 +26,13 @@ import { expect } from "chai";
 
 const HOOK_PROGRAM_ID = new PublicKey("DBkCSr6ZXmYzXUecrtBSrzctRJCSdPCXhGpR1DPAx7At");
 
-
 describe("Janecek-Tests", () => {
     let connection: anchor.web3.Connection;
     let provider: AnchorProvider;
     let wallet: Wallet;
     let program: Program<JanecekAnchor>;
 
+    let globalPermanentDelegate: Keypair;
     let pollOwner: Keypair;
     let pollOwner2: Keypair;
     let voter1: Keypair;
@@ -80,11 +82,20 @@ describe("Janecek-Tests", () => {
         const voter2SecretKey = Uint8Array.from([
             74,200,229,217,245,28,42,83,171,209,146,172,226,191,14,196,32,115,53,123,33,136,66,35,77,134,42,223,87,129,250,127,235,50,47,68,165,138,3,241,197,115,34,78,64,243,233,128,78,178,107,9,62,63,184,122,49,58,119,202,84,180,142,55
         ]);
+        const global_permanent_delegate = Uint8Array.from([
+            114,  81, 249,  44, 161,  72,  18, 107,  71, 169,  92,
+            132,   0, 190, 161,  17, 111, 141, 237, 131, 215,  85,
+            249, 193, 246,  65, 181, 240, 100, 169,  32, 133, 220,
+            202,  88,  25, 183, 149,  84, 151, 200, 200, 138, 140,
+            191, 215, 227,  11, 145,  97,  62, 190,  30, 198,  55,
+            100,  32,   3, 101, 253, 208, 190, 248,  18
+        ]);
         pollOwner = Keypair.fromSecretKey(pollOwnerSecretKey);
         pollOwner2 = Keypair.fromSecretKey(pollOwner2SecretKey);
         voter1 = Keypair.fromSecretKey(voter1SecretKey);
         voter2 = Keypair.fromSecretKey(voter2SecretKey);
-        
+        globalPermanentDelegate = Keypair.fromSecretKey(global_permanent_delegate);
+
         // Generate deterministic mint keypairs from seeds
         const mint1Seed = crypto.createHash("sha256").update("mint1").digest();
         const mint2Seed = crypto.createHash("sha256").update("mint2").digest();
@@ -111,6 +122,7 @@ describe("Janecek-Tests", () => {
 
         // Ensure custom keypairs have lamports.
         await Promise.all([
+            airdropIfNeeded(globalPermanentDelegate.publicKey),
             airdropIfNeeded(pollOwner.publicKey),
             airdropIfNeeded(pollOwner2.publicKey),
             airdropIfNeeded(voter1.publicKey),
@@ -119,6 +131,8 @@ describe("Janecek-Tests", () => {
             airdropIfNeeded(mint2Keypair.publicKey, 2 * LAMPORTS_PER_SOL),
         ]);
 
+        console.log("Global Permanent Delegate:", globalPermanentDelegate.publicKey.toString());
+        console.log("Global Permanent Delegate Balance:", await connection.getBalance(globalPermanentDelegate.publicKey));
         console.log("Poll Owner:", pollOwner.publicKey.toString());
         console.log("Poll Owner Balance:", await connection.getBalance(pollOwner.publicKey));
         console.log("Poll Owner 2:", pollOwner2.publicKey.toString());
@@ -1152,14 +1166,123 @@ describe("Janecek-Tests", () => {
                 maxSupportedTransactionVersion: 0,
             });
 
-            console.log("TX:", tx)
+            // console.log("TX:", tx)
 
             const logs = tx.meta.logMessages;
-            console.log(logs.join("\n"));
+            // console.log(logs.join("\n"));
 
-            expect(
-                logs.some((l) => l.includes("Hello Transfer Hook"))
+            expect(logs.some((l) => l.includes("Hello Transfer Hook"))
             ).to.equal(true);
         });
     })
+
+    describe("test-permanent-delegate", () => {
+        it("should allow permanent delegate to transfer tokens without owner signature", async () => {
+
+            const recipient = voter1;
+            const sender = voter2;
+
+            const senderAta = getAssociatedTokenAddressSync(
+                mintPdaB,
+                sender.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            const recipientAta = getAssociatedTokenAddressSync(
+                mintPdaB,
+                recipient.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            const ix = createTransferCheckedInstruction(
+                senderAta,
+                mintPdaB,
+                recipientAta,
+                globalPermanentDelegate.publicKey,
+                BigInt(1),
+                0,
+                [],
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            ix.keys.push({
+                pubkey: HOOK_PROGRAM_ID,
+                isSigner: false,
+                isWritable: false
+            });
+
+            const sig = await program.provider.sendAndConfirm(
+                new Transaction().add(ix),
+                [globalPermanentDelegate]
+            );
+
+            await connection.confirmTransaction(sig, "confirmed");
+
+            const senderBalance = Number((await getAccount(
+                connection,
+                senderAta,
+                "confirmed",
+                TOKEN_2022_PROGRAM_ID
+            )).amount);
+
+            const recipientBalance = Number((await getAccount(
+                connection,
+                recipientAta,
+                "confirmed",
+                TOKEN_2022_PROGRAM_ID
+            )).amount);
+
+            expect(senderBalance).to.equal(0);
+            expect(recipientBalance).to.equal(1);
+        });
+        it("should NOT allow random user to transfer tokens", async () => {
+            const attacker = randomUser; 
+            const sender = voter1;
+            const recipient = voter2;
+
+            const senderAta = getAssociatedTokenAddressSync(
+                mintPdaB,
+                sender.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            const recipientAta = getAssociatedTokenAddressSync(
+                mintPdaB,
+                recipient.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            const ix = createTransferCheckedInstruction(
+                senderAta,
+                mintPdaB,
+                recipientAta,
+                attacker.publicKey,      
+                BigInt(1),
+                0,
+                [],
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            ix.keys.push({
+                pubkey: HOOK_PROGRAM_ID,
+                isSigner: false,
+                isWritable: false
+            });
+
+            try {
+                await program.provider.sendAndConfirm(
+                    new Transaction().add(ix),
+                    [attacker]   
+                );
+            } catch (err: any) {
+                const msg = err.toString().toLowerCase();
+                expect(msg.includes("owner does not match")).to.equal(true);
+                expect(msg.includes("0x4")).to.equal(true); 
+            }
+        });
+    });
 });

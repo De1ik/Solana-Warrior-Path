@@ -9,6 +9,9 @@ pub use state::VoteType;
 
 declare_id!("4iXWdAoeJQMVr39ZhziS4hDfTz9K1soQTN88NLDwwinH");
 
+pub const GLOBAL_PERMANENT_DELEGATE: Pubkey = pubkey!("FrseZqdnrzEiJtWAodcrGjWTAJf1TCa3dtWu4fduxWtR");
+
+
 #[program]
 pub mod janecek_anchor {
     use super::*;

@@ -6,6 +6,7 @@ use anchor_spl::token_interface::{TokenInterface, Mint};
 
 use crate::state::{PartyAccount, PollAccount};
 use crate::errors::JanecekError;
+use crate::GLOBAL_PERMANENT_DELEGATE;
 
 use hook_program;
 
@@ -75,6 +76,7 @@ pub struct InitializePartyWithReward<'info> {
         mint::token_program = token_program,    
         extensions::transfer_hook::authority = party.key(),
         extensions::transfer_hook::program_id = hook_program::ID,
+        extensions::permanent_delegate::delegate = GLOBAL_PERMANENT_DELEGATE,
     )]
     pub mint: InterfaceAccount<'info, Mint>,
 
